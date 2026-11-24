@@ -1,25 +1,29 @@
 #!/usr/bin/env bash
-# Remove tudo o que o install.sh instalou (não remove pacotes do sistema).
-set -euo pipefail
+# Remove as configurações instaladas pelo install.sh, deixando escolher o quê.
+# Não remove pacotes do sistema.
+#
+# Uso:  ./uninstall.sh          menu: remover tudo ou escolher item por item
+#       ./uninstall.sh --tudo   remove tudo sem perguntar
+set -uo pipefail
 
-EXT_DIR="$HOME/.local/share/gnome-shell/extensions"
-EXTENSOES=(espacamento-bandeja@local ocultar-indicadores@local apps-no-menu@local)
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "$AQUI/lib.sh"
 
-python3 -I - "${EXTENSOES[@]}" <<'PY'
-import ast, subprocess, sys
-atual = subprocess.run(['gsettings', 'get', 'org.gnome.shell', 'enabled-extensions'],
-                       capture_output=True, text=True).stdout.strip().removeprefix('@as ')
-lista = [e for e in (ast.literal_eval(atual) if atual else []) if e not in sys.argv[1:]]
-subprocess.run(['gsettings', 'set', 'org.gnome.shell', 'enabled-extensions', str(lista)], check=True)
-PY
+negrito "═══ Remoção das configurações do GNOME ═══"
 
-for e in "${EXTENSOES[@]}"; do rm -rf "${EXT_DIR:?}/$e"; done
-rm -f "$HOME/.local/bin/bloqueio-microfone" "$HOME/.local/share/applications/bloqueio-microfone.desktop"
-
-REGRA="$HOME/.config/pipewire/pipewire-pulse.conf.d/10-bloquear-volume-microfone.conf"
-if [[ -f "$REGRA" ]]; then
-    rm -f "$REGRA"
-    systemctl --user restart pipewire-pulse.service || true
+if [[ "${1:-}" == "--tudo" ]]; then
+    mapfile -t ESCOLHIDOS < <(listar_modulos)
+else
+    escolher_modulos remover
 fi
 
-echo "Removido. Saia da sessão e entre de novo para o GNOME descarregar as extensões."
+for f in "${ESCOLHIDOS[@]}"; do
+    IFS='|' read -r titulo _ _ < <(info_modulo "$f")
+    echo
+    negrito "▶ $titulo"
+    rodar_modulo "$f" desinstalar || vermelho "  ✗ Falhou"
+done
+
+echo
+amarelo "Pronto. Se removeu extensões, saia da sessão e entre de novo."
