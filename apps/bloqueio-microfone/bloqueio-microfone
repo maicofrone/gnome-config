@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Bloqueio do microfone
+
+Mostra e edita quais apps NÃO podem mudar o volume do microfone.
+A lista fica em ~/.config/pipewire/pipewire-pulse.conf.d/10-bloquear-volume-microfone.conf
+(regra "block-source-volume" do PipeWire). Não roda nada em segundo plano.
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import gi
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+from gi.repository import Adw, Gtk, GLib  # noqa: E402
+
+ARQUIVO = Path.home() / '.config/pipewire/pipewire-pulse.conf.d/10-bloquear-volume-microfone.conf'
+
+# Programas do próprio sistema, que não fazem sentido na lista
+SISTEMA = {
+    'pipewire', 'wireplumber', 'gnome-shell', 'gsd-media-keys',
+    'xdg-desktop-portal', 'pactl', 'pw-cli', 'wpctl', 'python3', 'bloqueio-microfone',
+}
+
+NOMES_CONHECIDOS = {
+    'claude-desktop': 'Claude',
+    'vivaldi-bin': 'Vivaldi',
+    '~(chrome|chromium|brave|electron).*': 'Chrome, Chromium, Brave e apps Electron',
+}
+
+CABECALHO = """\
+# Impede que os apps abaixo mudem sozinhos o volume do microfone
+# ("ajuste automático de ganho"). Eles continuam usando o microfone normalmente.
+# Este arquivo é editado pelo app "Bloqueio do microfone".
+"""
+
+LINHA_RE = re.compile(r'\{\s*application\.process\.binary\s*=\s*"([^"]+)"\s*\}\s*(?:#\s*(.*))?')
+
+
+def ler_lista():
+    """Retorna [(binario, nome)] do arquivo de regra."""
+    if not ARQUIVO.exists():
+        return []
+    itens = []
+    for linha in ARQUIVO.read_text().splitlines():
+        m = LINHA_RE.search(linha)
+        if m:
+            binario = m.group(1)
+            nome = (m.group(2) or '').strip() or NOMES_CONHECIDOS.get(binario, binario)
+            itens.append((binario, nome))
+    return itens
+
+
+def escrever_lista(itens):
+    ARQUIVO.parent.mkdir(parents=True, exist_ok=True)
+    if not itens:
+        ARQUIVO.write_text(CABECALHO + '# (nenhum app bloqueado)\n')
+        return
+    linhas = [f'            {{ application.process.binary = "{b}" }}   # {n}' for b, n in itens]
+    ARQUIVO.write_text(
+        CABECALHO
+        + 'pulse.rules = [\n    {\n        matches = [\n'
+        + '\n'.join(linhas)
+        + '\n        ]\n        actions = { quirks = [ block-source-volume ] }\n    }\n]\n'
+    )
+
+
+def aplicar():
+    """Reinicia o servidor de som para ler a regra (o som pisca ~1 s)."""
+    r = subprocess.run(['systemctl', '--user', 'restart', 'pipewire-pulse.service'],
+                       capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip()
+
+
+def apps_usando_som():
+    """Retorna {binario: nome} dos apps conectados ao som agora."""
+    try:
+        saida = subprocess.run(['pactl', '-f', 'json', 'list', 'clients'],
+                               capture_output=True, text=True, timeout=5).stdout
+        clientes = json.loads(saida or '[]')
+    except Exception:
+        return {}
+    apps = {}
+    for c in clientes:
+        p = c.get('properties', {})
+        b = p.get('application.process.binary')
+        if not b or b in SISTEMA:
+            continue
+        nome = p.get('application.name') or b
+        # "Vivaldi input" -> "Vivaldi"
+        nome = re.sub(r'\s+(input|output)$', '', nome, flags=re.I)
+        apps.setdefault(b, nome)
+    return apps
+
+
+def bloqueado(binario, lista):
+    for b, _ in lista:
+        if b.startswith('~'):
+            if re.fullmatch(b[1:], binario):
+                return True
+        elif b == binario:
+            return True
+    return False
+
+
+class Janela(Adw.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title='Bloqueio do microfone',
+                         default_width=560, default_height=680)
+
+        self.toasts = Adw.ToastOverlay()
+        vista = Adw.ToolbarView()
+        cabecalho = Adw.HeaderBar()
+        atualizar = Gtk.Button(icon_name='view-refresh-symbolic',
+                               tooltip_text='Atualizar lista de apps')
+        atualizar.connect('clicked', lambda *_: self.recarregar())
+        cabecalho.pack_start(atualizar)
+        vista.add_top_bar(cabecalho)
+
+        self.pagina = Adw.PreferencesPage()
+        vista.set_content(self.pagina)
+        self.toasts.set_child(vista)
+        self.set_content(self.toasts)
+
+        self.grupos = []
+        self.recarregar()
+
+    # ---------- montagem da tela ----------
+    def recarregar(self):
+        for g in self.grupos:
+            self.pagina.remove(g)
+        self.grupos = []
+        lista = ler_lista()
+
+        # 1) Bloqueados
+        g1 = Adw.PreferencesGroup(
+            title='Apps bloqueados',
+            description='Estes apps usam o microfone normalmente, mas não '
+                        'conseguem mudar o volume dele.\n'
+                        'Atenção: cada mudança reinicia o som. Apps abertos como '
+                        'Claude e navegadores podem perder o microfone até você '
+                        'fechá-los e abri-los de novo.')
+        if not lista:
+            g1.add(Adw.ActionRow(title='Nenhum app bloqueado'))
+        for binario, nome in lista:
+            linha = Adw.ActionRow(title=GLib.markup_escape_text(nome),
+                                  subtitle=GLib.markup_escape_text(binario))
+            linha.add_prefix(Gtk.Image(icon_name='microphone-disabled-symbolic'))
+            remover = Gtk.Button(icon_name='user-trash-symbolic',
+                                 tooltip_text='Desbloquear',
+                                 valign=Gtk.Align.CENTER)
+            remover.add_css_class('flat')
+            remover.connect('clicked', self.on_remover, binario)
+            linha.add_suffix(remover)
+            g1.add(linha)
+        self._add(g1)
+
+        # 2) Apps usando som agora
+        g2 = Adw.PreferencesGroup(
+            title='Apps usando som agora',
+            description='Clique em "Bloquear" para adicionar um app à lista.')
+        apps = apps_usando_som()
+        if not apps:
+            g2.add(Adw.ActionRow(title='Nenhum app usando som no momento'))
+        for binario, nome in sorted(apps.items(), key=lambda x: x[1].lower()):
+            linha = Adw.ActionRow(title=GLib.markup_escape_text(nome),
+                                  subtitle=GLib.markup_escape_text(binario))
+            if bloqueado(binario, lista):
+                rotulo = Gtk.Label(label='Bloqueado', valign=Gtk.Align.CENTER)
+                rotulo.add_css_class('dim-label')
+                linha.add_suffix(rotulo)
+            else:
+                botao = Gtk.Button(label='Bloquear', valign=Gtk.Align.CENTER)
+                botao.add_css_class('suggested-action')
+                botao.connect('clicked', self.on_adicionar, binario, nome)
+                linha.add_suffix(botao)
+            g2.add(linha)
+        self._add(g2)
+
+        # 3) Manual
+        g3 = Adw.PreferencesGroup(
+            title='Adicionar manualmente',
+            description='Para um app que não está aberto agora. Digite o nome do '
+                        'programa (ex.: discord, zoom) e aperte Enter.')
+        self.entrada = Adw.EntryRow(title='Nome do programa', show_apply_button=True)
+        self.entrada.connect('apply', self.on_manual)
+        g3.add(self.entrada)
+        self._add(g3)
+
+    def _add(self, grupo):
+        self.pagina.add(grupo)
+        self.grupos.append(grupo)
+
+    # ---------- ações ----------
+    def salvar(self, lista, mensagem):
+        escrever_lista(lista)
+        ok, erro = aplicar()
+        self.toasts.add_toast(Adw.Toast(
+            title=(f'{mensagem}. Reabra apps que usam o microfone (ex.: Claude).'
+                   if ok else f'Salvo, mas o som não reiniciou: {erro}'),
+            timeout=6))
+        # espera o som voltar antes de recarregar a lista de apps
+        GLib.timeout_add(1500, lambda: (self.recarregar(), False)[1])
+
+    def on_adicionar(self, _botao, binario, nome):
+        lista = ler_lista()
+        if not any(b == binario for b, _ in lista):
+            lista.append((binario, nome))
+        self.salvar(lista, f'{nome} bloqueado')
+
+    def on_remover(self, _botao, binario):
+        lista = ler_lista()
+        nome = next((n for b, n in lista if b == binario), binario)
+        self.salvar([(b, n) for b, n in lista if b != binario], f'{nome} desbloqueado')
+
+    def on_manual(self, entrada):
+        texto = entrada.get_text().strip()
+        if not re.fullmatch(r'[\w.+-]+', texto):
+            self.toasts.add_toast(Adw.Toast(title='Use só o nome do programa, sem espaços'))
+            return
+        entrada.set_text('')
+        self.on_adicionar(None, texto, texto)
+
+
+class App(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id='local.BloqueioMicrofone')
+
+    def do_activate(self):
+        janela = self.props.active_window or Janela(self)
+        janela.present()
+
+
+if __name__ == '__main__':
+    sys.exit(App().run(sys.argv))

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.espacamento-bandeja"
+          path="/org/gnome/shell/extensions/espacamento-bandeja/">
+    <key name="padding" type="i">
+      <range min="0" max="20"/>
+      <default>6</default>
+      <summary>Espaço de cada lado do ícone (px)</summary>
+      <description>Padrão do GNOME: 12. Menor = ícones mais próximos.</description>
+    </key>
+  </schema>
+</schemalist>

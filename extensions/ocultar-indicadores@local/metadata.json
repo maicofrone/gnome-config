@@ -1,0 +1,6 @@
+{
+  "uuid": "ocultar-indicadores@local",
+  "name": "Ocultar indicadores",
+  "description": "Esconde da barra superior os ícones de Modo de energia e Luz noturna (os botões continuam no menu rápido).",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"]
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bloqueio do microfone
+Comment=Escolha quais apps não podem mudar o volume do microfone
+Exec=@BINDIR@/bloqueio-microfone
+Icon=audio-input-microphone
+Categories=Settings;
+Keywords=microfone;volume;mic;pipewire;bloquear;
+StartupWMClass=local.BloqueioMicrofone

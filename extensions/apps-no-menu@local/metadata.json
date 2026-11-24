@@ -1,0 +1,6 @@
+{
+  "uuid": "apps-no-menu@local",
+  "name": "Apps em segundo plano no menu",
+  "description": "Tira da barra os ícones de apps (Claude, Dropbox, Cachy-Update...) e os lista num botão do menu rápido. Ao clicar num app, o menu dele abre normalmente.",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"]
+}

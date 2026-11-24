@@ -1,0 +1,7 @@
+{
+  "uuid": "espacamento-bandeja@local",
+  "name": "Espaçamento da bandeja",
+  "description": "Ajusta a distância entre os ícones do lado direito da barra superior.",
+  "settings-schema": "org.gnome.shell.extensions.espacamento-bandeja",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"]
+}
