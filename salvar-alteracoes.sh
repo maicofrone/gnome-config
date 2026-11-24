@@ -17,6 +17,8 @@ done
 cp "$HOME/.local/bin/bloqueio-microfone" "$AQUI/apps/bloqueio-microfone/" 2>/dev/null || true
 cp "$HOME/.config/pipewire/pipewire-pulse.conf.d/10-bloquear-volume-microfone.conf" \
    "$AQUI/config/pipewire/pipewire-pulse.conf.d/" 2>/dev/null || true
+cp "$HOME/.config/wireplumber/wireplumber.conf.d/50-saidas-de-audio.conf" \
+   "$AQUI/config/wireplumber/wireplumber.conf.d/" 2>/dev/null || true
 
 echo "Pasta atualizada com o que está no computador."
 command -v git >/dev/null && git -C "$AQUI" status --short

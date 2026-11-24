@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+"""Escolher as saídas de áudio
+
+Lê as saídas de som que o computador tem, pergunta quais devem aparecer no
+GNOME e grava uma regra do WirePlumber que esconde as outras.
+
+Uso:
+  escolher-saidas --destino ARQ [--padrao ARQ]               pergunta no terminal
+  escolher-saidas --destino ARQ [--padrao ARQ] --automatico  sem perguntas: usa a
+                                                             escolha salva, se houver
+
+Como esconde (o WirePlumber não sabe esconder uma saída sozinha, só a placa):
+  - nenhuma saída da placa escolhida   -> desativa a placa (device.disabled)
+  - só a saída analógica escolhida     -> perfil "analog-only.conf", que tira as
+                                          digitais (S/PDIF) e HDMI daquela placa
+A escolha fica anotada no começo do arquivo gerado (linhas "# manter:").
+"""
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+# Arquivos de versões anteriores deste item, substituídos pelo arquivo gerado
+ANTIGOS = ['51-desativar-hdmi-nvidia.conf', '52-somente-analogico.conf']
+
+NOME_TIPO = {'analog': 'analógica', 'digital': 'digital (S/PDIF)', 'hdmi': 'HDMI / DisplayPort'}
+
+
+def negrito(t): return f'\033[1m{t}\033[0m'
+def fraco(t): return f'\033[2m{t}\033[0m'
+def amarelo(t): return f'\033[33m{t}\033[0m'
+def verde(t): return f'\033[32m{t}\033[0m'
+
+
+# ---------- som ----------
+def reiniciar_wireplumber():
+    # O systemd bloqueia o serviço se ele reinicia muitas vezes seguidas
+    # ("start of the service was attempted too often") e o som para de vez.
+    # reset-failed zera essa contagem antes de cada reinício.
+    subprocess.run(['systemctl', '--user', 'reset-failed', 'wireplumber.service'],
+                   check=False, stderr=subprocess.DEVNULL)
+    subprocess.run(['systemctl', '--user', 'restart', 'wireplumber.service'], check=False)
+
+
+def ler_placas():
+    saida = subprocess.run(['pactl', '-f', 'json', 'list', 'cards'], capture_output=True,
+                           text=True, env={**os.environ, 'LC_ALL': 'C'}, check=True).stdout
+    return json.loads(saida or '[]')
+
+
+def esperar_placas():
+    """Depois de reiniciar o WirePlumber, espera a lista de placas parar de mudar."""
+    anterior, estavel = None, 0
+    for _ in range(40):
+        time.sleep(0.25)
+        try:
+            atual = sorted(c['name'] for c in ler_placas())
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            continue
+        estavel = estavel + 1 if atual == anterior and atual else 0
+        if estavel >= 4:
+            break
+        anterior = atual
+    return ler_placas()
+
+
+def tipo_da_porta(nome):
+    if 'input' in nome:
+        return 'entrada'
+    if nome.startswith('hdmi-output'):
+        return 'hdmi'
+    if 'iec958' in nome:
+        return 'digital'
+    if 'output' in nome:
+        return 'analog'
+    return None
+
+
+def montar_saidas(placas):
+    """Uma opção por placa e tipo (analógica, digital, HDMI), como o GNOME mostra."""
+    saidas, placas_info = [], {}
+    for c in placas:
+        if not c['name'].startswith('alsa_card.'):
+            continue
+        nome_placa = c['properties'].get('device.description', c['name'])
+        grupos, tem_microfone = {}, False
+        for nome, p in c['ports'].items():
+            tipo = tipo_da_porta(nome)
+            if tipo == 'entrada':
+                tem_microfone = True
+            elif tipo:
+                grupos.setdefault(tipo, []).append(p)
+        placas_info[c['name']] = {'nome': nome_placa, 'tipos': set(grupos), 'microfone': tem_microfone}
+        for tipo in ('analog', 'digital', 'hdmi'):
+            if tipo not in grupos:
+                continue
+            portas = grupos[tipo]
+            ligadas = [p for p in portas if p['availability'] != 'not available'] or portas
+            rotulo = ', '.join(dict.fromkeys(p['description'] for p in ligadas))
+            saidas.append({'placa': c['name'], 'tipo': tipo,
+                           'rotulo': f'{rotulo} - {nome_placa}'})
+    return saidas, placas_info
+
+
+# ---------- arquivo de regra ----------
+def ler_escolha(arquivo):
+    """Devolve (saídas mantidas, placas cujo microfone foi desativado) ou None."""
+    if not arquivo or not Path(arquivo).is_file():
+        return None
+    manter, sem_microfone = set(), set()
+    for linha in Path(arquivo).read_text().splitlines():
+        if linha.startswith('# manter: '):
+            placa, _, tipo = linha[10:].strip().rpartition(':')
+            manter.add((placa, tipo))
+        elif linha.startswith('# desativar-microfone: '):
+            sem_microfone.add(linha[23:].strip())
+    return manter, sem_microfone
+
+
+def bloco(placas, acao):
+    matches = '\n'.join(f'      {{ device.name = "{p}" }}' for p in placas)
+    return f'''  {{
+    matches = [
+{matches}
+    ]
+    actions = {{
+      update-props = {{
+        {acao}
+      }}
+    }}
+  }}'''
+
+
+def gerar_regra(manter, sem_microfone, placas_info):
+    """Decide o que fazer com cada placa. Devolve (texto do arquivo ou None, avisos)."""
+    desativar, so_analogico, avisos = [], [], []
+    for placa, info in placas_info.items():
+        tipos, mantidos = info['tipos'], {t for p, t in manter if p == placa}
+        if not tipos or mantidos == tipos:
+            continue
+        if not mantidos:
+            if info['microfone'] and placa not in sem_microfone:
+                if 'analog' in tipos:
+                    so_analogico.append(placa)
+                    avisos.append(f'{info["nome"]}: a saída analógica continua, porque desativar '
+                                  'a placa tiraria o microfone junto.')
+                else:
+                    avisos.append(f'{info["nome"]}: continua igual, porque desativar a placa '
+                                  'tiraria o microfone junto.')
+            else:
+                desativar.append(placa)
+        elif mantidos == {'analog'}:
+            so_analogico.append(placa)
+        else:
+            avisos.append(f'{info["nome"]}: só dá para esconder as saídas digitais e HDMI '
+                          'deixando a analógica. Essa placa continua igual.')
+
+    if not desativar and not so_analogico:
+        return None, avisos
+    cabecalho = ['# Gerado pelo item "Áudio: escolher as saídas" do gnome-config.',
+                 '# Para mudar, rode o ./install.sh de novo e escolha esse item.',
+                 '# Para desfazer, apague este arquivo e rode: systemctl --user restart wireplumber']
+    cabecalho += [f'# manter: {p}:{t}' for p, t in sorted(manter)]
+    cabecalho += [f'# desativar-microfone: {p}' for p in sorted(sem_microfone) if p in desativar]
+    blocos = []
+    if desativar:
+        blocos.append(bloco(desativar, 'device.disabled = true'))
+    if so_analogico:
+        blocos.append(bloco(so_analogico, 'device.profile-set = "analog-only.conf"'))
+    texto = '\n'.join(cabecalho) + '\nmonitor.alsa.rules = [\n' + '\n'.join(blocos) + '\n]\n'
+    return texto, avisos
+
+
+# ---------- perguntas ----------
+def perguntar_saidas(saidas, padrao):
+    print()
+    print(negrito('Saídas de áudio deste computador:'))
+    for i, s in enumerate(saidas, 1):
+        marca = verde('✓') if (s['placa'], s['tipo']) in padrao else ' '
+        print(f'  {marca} {i}) {s["rotulo"]}  {fraco(NOME_TIPO[s["tipo"]])}')
+    print()
+    print(fraco('  Digite os números das saídas que devem APARECER, separados por espaço.'))
+    print(fraco('  Enter mantém as marcadas com ✓.  "t" mostra todas.'))
+    while True:
+        try:
+            resp = input('Saídas: ').strip().lower()
+        except EOFError:
+            resp = ''
+        if not resp:
+            if padrao:
+                return set(padrao)
+            print(amarelo('  Nenhuma marcada ainda: digite os números.'))
+            continue
+        if resp == 't':
+            return {(s['placa'], s['tipo']) for s in saidas}
+        try:
+            numeros = {int(n) for n in resp.replace(',', ' ').split()}
+        except ValueError:
+            print(amarelo('  Use só números, por exemplo: 1 3'))
+            continue
+        if not numeros or not all(1 <= n <= len(saidas) for n in numeros):
+            print(amarelo(f'  Escolha números de 1 a {len(saidas)}.'))
+            continue
+        return {(saidas[n - 1]['placa'], saidas[n - 1]['tipo']) for n in numeros}
+
+
+def perguntar_microfones(manter, placas_info, sem_microfone_antes):
+    sem_microfone = set()
+    for placa, info in placas_info.items():
+        if not info['microfone'] or any(p == placa for p, _ in manter):
+            continue
+        antes = placa in sem_microfone_antes
+        dica = '[S/n]' if antes else '[s/N]'
+        try:
+            resp = input(f'O {info["nome"]} também tem microfone. Desativar o microfone dele junto? {dica} ')
+        except EOFError:
+            resp = ''
+        resp = resp.strip().lower()
+        if resp.startswith(('s', 'y')) or (not resp and antes):
+            sem_microfone.add(placa)
+    return sem_microfone
+
+
+# ---------- principal ----------
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--destino', required=True, help='arquivo de regra do WirePlumber a gerar')
+    ap.add_argument('--padrao', help='escolha salva no gnome-config, usada se ainda não houver uma')
+    ap.add_argument('--automatico', action='store_true', help='não perguntar nada')
+    args = ap.parse_args()
+
+    destino = Path(args.destino)
+    pasta = destino.parent
+    pasta.mkdir(parents=True, exist_ok=True)
+    antigos = [pasta / a for a in ANTIGOS if (pasta / a).exists()]
+    escolha_salva = ler_escolha(destino) or ler_escolha(args.padrao)
+
+    if args.automatico:
+        mudou = bool(antigos)
+        if destino.exists():
+            print(verde('  ✓ Mantida a escolha de saídas que já estava no computador'))
+        elif args.padrao and Path(args.padrao).is_file():
+            shutil.copy(args.padrao, destino)
+            mudou = True
+            print(verde('  ✓ Aplicada a escolha de saídas salva no gnome-config'))
+        else:
+            print(amarelo('  Nenhuma escolha salva: todas as saídas continuam aparecendo.'))
+            print(amarelo('  Rode ./install.sh e escolha este item para escolher.'))
+        for a in antigos:
+            a.unlink()
+        if mudou:
+            reiniciar_wireplumber()
+        return 0
+
+    # Tira as regras por um momento para enxergar todas as saídas
+    backup = {p: p.read_text() for p in [destino, *antigos] if p.exists()}
+    try:
+        for p in backup:
+            p.unlink()
+        if backup:
+            print(fraco('  Lendo as saídas (o som reinicia por um instante)...'))
+            reiniciar_wireplumber()
+            placas = esperar_placas()
+        else:
+            placas = ler_placas()
+
+        saidas, placas_info = montar_saidas(placas)
+        if not saidas:
+            raise RuntimeError('nenhuma saída de áudio encontrada')
+        presentes = {(s['placa'], s['tipo']) for s in saidas}
+        if escolha_salva:
+            padrao, sem_mic_antes = escolha_salva[0] & presentes, escolha_salva[1]
+        else:
+            padrao, sem_mic_antes = presentes, set()
+
+        manter = perguntar_saidas(saidas, padrao)
+        sem_microfone = perguntar_microfones(manter, placas_info, sem_mic_antes)
+        texto, avisos = gerar_regra(manter, sem_microfone, placas_info)
+    except (KeyboardInterrupt, Exception) as erro:
+        for p, conteudo in backup.items():
+            p.write_text(conteudo)
+        reiniciar_wireplumber()
+        if isinstance(erro, KeyboardInterrupt):
+            print('\n  Cancelado: nada mudou.')
+            return 1
+        print(f'  Erro: {erro}. Nada mudou.')
+        return 1
+
+    if texto:
+        destino.write_text(texto)
+    if backup or texto:
+        reiniciar_wireplumber()
+    print()
+    if not texto:
+        print(verde('  ✓ Todas as saídas continuam aparecendo'))
+    else:
+        print('  Vão aparecer:')
+        for s in saidas:
+            if (s['placa'], s['tipo']) in manter:
+                print(verde(f'  ✓ {s["rotulo"]}'))
+    for a in avisos:
+        print(amarelo(f'  {a}'))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

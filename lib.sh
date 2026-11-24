@@ -6,6 +6,7 @@ EXT_DIR="$HOME/.local/share/gnome-shell/extensions"
 BIN_DIR="$HOME/.local/bin"
 APPS_DIR="$HOME/.local/share/applications"
 PW_DIR="$HOME/.config/pipewire/pipewire-pulse.conf.d"
+WP_DIR="$HOME/.config/wireplumber/wireplumber.conf.d"
 
 verde()    { printf '\033[32m%s\033[0m\n' "$*"; }
 amarelo()  { printf '\033[33m%s\033[0m\n' "$*"; }

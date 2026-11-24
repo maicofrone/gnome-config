@@ -37,6 +37,7 @@ Se instalou extensões, **saia da sessão e entre de novo** para o GNOME carreg�
 | **Extensão: Apps em segundo plano no menu** | Tira da barra os ícones de apps (Claude, Dropbox, Cachy-Update…) e os lista num botão **"Apps"** no menu rápido. |
 | **Extensão: Botão do firewall** | Botão **"Firewall"** no menu rápido para ligar e desligar o ufw. **Desligar pede senha; ligar não**, mostra um escudo cortado na barra enquanto o firewall estiver desligado e **o firewall sempre volta ligado ao reiniciar o PC ou ao entrar na sessão**. |
 | **Microfone: bloquear apps de mudar o volume** | Regra do PipeWire que impede apps baseados no Chrome (Claude, Vivaldi, Brave…) de baixar o microfone sozinhos, mais o app **Bloqueio do microfone** para editar a lista. |
+| **Áudio: escolher as saídas** | Lista as saídas de som do PC (headset, placa-mãe, HDMI da placa de vídeo, digitais) e **pergunta quais devem aparecer** no GNOME; as outras ficam escondidas. Os microfones continuam, a não ser que você escolha desativar. Para mudar depois, rode o `./install.sh` de novo e escolha só esse item. |
 | **Firewall: liberar KDE Connect** | Instala o KDE Connect e abre as portas 1714-1764 (TCP/UDP) no firewall (ufw ou firewalld). |
 | **Firewall: liberar LocalSend** | Instala o LocalSend e abre a porta 53317 (TCP/UDP). |
 | **Firewall: liberar OTA do ESP32** | Libera o upload OTA do ArduinoOTA/espota (Arduino IDE e PlatformIO): TCP 10000-60000, que é por onde o ESP32 se conecta de volta ao PC, mais o mDNS (5353/udp) para o ESP aparecer na rede. **Só para a rede local.** |
@@ -84,8 +85,9 @@ HISTORICO.md           o que foi feito e por quê
 lib.sh                 funções compartilhadas e o menu
 modulos/               um arquivo por item instalável
 extensions/            código das extensões do GNOME
-apps/                  app Bloqueio do microfone
+apps/                  app Bloqueio do microfone e o escolhedor de saídas de áudio
 config/pipewire/       regra do microfone
+config/wireplumber/    última escolha de saídas de áudio (usada no --tudo)
 ```
 
 ## Observações

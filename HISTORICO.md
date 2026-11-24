@@ -62,6 +62,28 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
   - A extensão instala as duas regras (systemd + polkit) na primeira ação que pedir senha. Como a pasta do polkit não pode ser lida sem root, ela grava um marcador de versão em `/usr/local/share/firewall-toggle/versao` para saber se já instalou.
 - **2026-11-24, religar também no login:** a regra do systemd só age num **reinício de verdade**. Sair da sessão e entrar de novo não reinicia o ufw, então o firewall continuava desligado. Agora a extensão também religa o firewall (sem senha) **uma vez por login**. No desbloqueio de tela ela não religa: o GNOME chama `enable()` a cada desbloqueio, mas uma variável que vive enquanto a sessão estiver aberta evita repetir.
 
+## 2026-11-24: Saídas de áudio sobrando na lista
+
+- **Sintoma:** a lista de saídas de som mostrava 6 opções, mas só são usadas duas: a **Analog Output do HyperX Cloud Revolver S** e a **Line Out** da placa-mãe.
+- **Causa:** o PC tem 3 placas de áudio (headset HyperX USB, placa-mãe Starship/Matisse e a placa de vídeo NVIDIA AD106M), e o GNOME lista todas as saídas que cada uma oferece, mesmo as sem nada ligado.
+  - As duas **HDMI / DisplayPort** são o som da placa de vídeo para o monitor. Colocar o perfil dela em "Desligado" no `pavucontrol` **não adianta**: ela já estava desligada e o GNOME continuava mostrando as saídas.
+  - As duas **S/PDIF** (digitais) fazem parte do headset e da placa-mãe, então não dá para desligar a placa inteira.
+- **Solução:** uma regra do WirePlumber em `~/.config/wireplumber/wireplumber.conf.d/50-saidas-de-audio.conf`. Item **"Áudio: escolher as saídas"**.
+  - O WirePlumber não sabe esconder **uma saída** sozinha, só mexer na **placa inteira**. Por isso há dois jeitos:
+    - nenhuma saída da placa escolhida → `device.disabled = true` (a placa some; no caso da NVIDIA só o áudio some, o vídeo não é afetado);
+    - só a analógica escolhida → `device.profile-set = "analog-only.conf"`, um perfil que já vem com o sistema (`/usr/share/alsa-card-profile/mixer/profile-sets/`) e tira as saídas digitais e HDMI daquela placa. Os microfones continuam funcionando.
+  - Não dá para deixar só a digital e esconder a analógica da mesma placa: nesse caso a placa fica como está.
+  - **Atenção:** a propriedade certa é `device.profile-set`. A `api.acp.profile-set` é aceita sem erro, mas não faz nada.
+- **Escolha na instalação:** o item roda `apps/saidas-de-audio/escolher-saidas`. Ele tira a regra por um instante, reinicia o WirePlumber para enxergar todas as saídas, mostra a lista numerada e pergunta quais devem aparecer (Enter mantém a escolha anterior). Se uma placa com microfone (como o headset) ficar sem nenhuma saída, ele pergunta se o microfone deve ser desativado junto. A escolha fica anotada no começo do arquivo (linhas `# manter:`).
+  - Com `./install.sh --tudo` ou sem terminal, não pergunta: usa a escolha que já está no PC ou, se não houver, a salva no gnome-config (`config/wireplumber/`).
+  - A primeira versão do item (2026-11-24) tinha duas regras fixas, `51-desativar-hdmi-nvidia.conf` e `52-somente-analogico.conf`. O item novo apaga essas duas se encontrar.
+- **Cuidado ao testar:** reiniciar o WirePlumber muitas vezes seguidas faz o systemd bloquear o serviço ("start of the service was attempted too often") e o **som para de vez**. O script roda `systemctl --user reset-failed wireplumber` antes de cada reinício. Se acontecer mesmo assim:
+  ```bash
+  systemctl --user reset-failed wireplumber && systemctl --user start wireplumber
+  ```
+- A regra usa o nome exato de cada placa. Se trocar o headset, a placa de vídeo ou a placa-mãe, os nomes mudam e a regra deixa de valer (sem quebrar nada): é só rodar o item de novo. Veja os nomes atuais com `pactl list cards short`.
+- **Para desfazer:** `./uninstall.sh` e escolha o item, ou apague o arquivo e rode `systemctl --user restart wireplumber`.
+
 ---
 
 ## Ajustes manuais (não automatizados)
