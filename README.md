@@ -33,7 +33,6 @@ Se instalou extensões, **saia da sessão e entre de novo** para o GNOME carreg�
 
 | Item | O que faz |
 |---|---|
-| **Extensão: Espaçamento da bandeja** | Diminui a distância entre os ícones do lado direito da barra (6 px). |
 | **Extensão: Ocultar indicadores** | Esconde da barra os ícones de Modo de energia (Performance) e Luz noturna. Os botões continuam no menu rápido. |
 | **Extensão: Apps em segundo plano no menu** | Tira da barra os ícones de apps (Claude, Dropbox, Cachy-Update…) e os lista num botão **"Apps"** no menu rápido. |
 | **Extensão: Botão do firewall** | Botão **"Firewall"** no menu rápido para ligar e desligar o ufw. **Desligar pede senha; ligar não**, mostra um escudo cortado na barra enquanto o firewall estiver desligado e **o firewall sempre volta ligado ao reiniciar o PC ou ao entrar na sessão**. |

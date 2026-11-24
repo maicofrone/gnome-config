@@ -14,8 +14,8 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
 - **Causa:** o GNOME mostra esses ícones sempre que o modo não é o "Equilibrado" ou quando a Luz noturna está ativa.
 - **Solução:** extensão **`ocultar-indicadores@local`**. Ela esconde só os ícones da barra, e os botões continuam no menu rápido.
 
-### Espaçamento entre os ícones
-- Extensão **`espacamento-bandeja@local`** (já existia), com o espaçamento em 6 px.
+### Espaçamento entre os ícones (removido)
+- A extensão `espacamento-bandeja@local` ajustava a distância entre os ícones da barra. Foi **removida em 2026-11-24** porque, com os ícones dos apps agrupados no botão "Apps", ela deixou de ser útil.
 
 ---
 
