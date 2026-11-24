@@ -2,6 +2,8 @@
 
 Minhas personalizações do GNOME (CachyOS / Arch), prontas para reinstalar depois de formatar.
 
+O motivo de cada ajuste (e como resolver de novo se o problema voltar) está em **[HISTORICO.md](HISTORICO.md)**.
+
 ## Instalar
 
 ```bash
@@ -78,6 +80,7 @@ Funções prontas em `lib.sh`: `copiar_extensao`, `ativar_extensao`, `remover_ex
 
 ```
 install.sh / uninstall.sh / salvar-alteracoes.sh
+HISTORICO.md           o que foi feito e por quê
 lib.sh                 funções compartilhadas e o menu
 modulos/               um arquivo por item instalável
 extensions/            código das extensões do GNOME
