@@ -51,7 +51,7 @@ class FirewallToggle extends QuickToggle {
         this.checked = ligado === true;
         this.iconName = ligado === false ? 'security-low-symbolic' : 'security-high-symbolic';
         if (!this._ocupado)
-            this.subtitle = ligado === null ? 'ufw não instalado' : ligado ? 'Ativo' : 'Desativado';
+            this.subtitle = ligado === null ? 'ufw não instalado' : ligado ? 'Ativo' : 'Desligado até reiniciar';
         this.reactive = ligado !== null && !this._ocupado;
     }
 
@@ -68,7 +68,9 @@ class FirewallToggle extends QuickToggle {
             // pkexec abre a janela de senha do GNOME
             const status = await rodar(['pkexec', UFW, ...(ligado ? ['disable'] : ['--force', 'enable'])]);
             if (status === 0)
-                Main.notify('Firewall', ligado ? 'Firewall desativado.' : 'Firewall ativado.');
+                Main.notify('Firewall', ligado
+                    ? 'Firewall desativado. Ele volta ligado quando o computador reiniciar.'
+                    : 'Firewall ativado.');
             else if (status !== 126 && status !== 127) // 126/127 = senha cancelada
                 Main.notifyError('Firewall', `Não foi possível mudar o firewall (código ${status}).`);
         } finally {
