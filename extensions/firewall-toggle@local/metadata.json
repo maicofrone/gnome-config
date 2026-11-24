@@ -1,0 +1,6 @@
+{
+  "uuid": "firewall-toggle@local",
+  "name": "Botão do firewall",
+  "description": "Botão no menu rápido para ligar e desligar o firewall (ufw). Pede a senha de administrador. Mostra um ícone de alerta na barra enquanto o firewall estiver desligado.",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"]
+}

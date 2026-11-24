@@ -48,6 +48,15 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
 - **Solução:** liberar TCP 10000-60000 e o mDNS (5353/udp, para o ESP aparecer em "Portas de rede"), **só para a rede local** (192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12). Item **"Firewall: liberar OTA do ESP32"**.
 - O OTA do ESPHome e o OTA pelo navegador (ElegantOTA) não precisam disso, porque neles é o PC que se conecta ao ESP.
 
+## 2026-11-24: Botão para ligar/desligar o firewall
+
+- **Motivo:** às vezes é preciso desligar o firewall rapidamente (testes, um app que não conecta) sem abrir o terminal.
+- **Solução:** extensão **`firewall-toggle@local`**, um botão **"Firewall"** no menu rápido.
+  - O estado vem de `/etc/ufw/ufw.conf` (`ENABLED=yes/no`), que dá para ler sem senha.
+  - Ligar/desligar usa `pkexec ufw enable/disable`, e o GNOME pede a senha de administrador.
+  - Enquanto o firewall estiver **desligado**, aparece um ícone de escudo de alerta na barra, para você não esquecer de religar.
+  - As regras liberadas (KDE Connect, ESP32 etc.) continuam salvas e voltam ao religar.
+
 ---
 
 ## Ajustes manuais (não automatizados)
