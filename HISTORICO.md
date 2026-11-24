@@ -54,7 +54,7 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
 - **Solução:** extensão **`firewall-toggle@local`**, um botão **"Firewall"** no menu rápido.
   - O estado vem de `/etc/ufw/ufw.conf` (`ENABLED=yes/no`), que dá para ler sem senha.
   - Ligar/desligar usa `pkexec ufw enable/disable`, e o GNOME pede a senha de administrador.
-  - Enquanto o firewall estiver **desligado**, aparece um ícone de escudo de alerta na barra, para você não esquecer de religar.
+  - Enquanto o firewall estiver **desligado**, aparece na barra um escudo cortado por uma faixa (ícone próprio, monocromático, em `icons/`), para você não esquecer de religar.
   - As regras liberadas (KDE Connect, ESP32 etc.) continuam salvas e voltam ao religar.
 - **Sempre volta ligado ao reiniciar:** por padrão o `ufw disable` é permanente e continuaria desligado depois do boot. Um drop-in do systemd em `/etc/systemd/system/ufw.service.d/religar-no-boot.conf` muda `ENABLED=yes` no `ufw.conf` antes do ufw iniciar. Assim, desligar pelo botão vale só até o próximo reinício.
 

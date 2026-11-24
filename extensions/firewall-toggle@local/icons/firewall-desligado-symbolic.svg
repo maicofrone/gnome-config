@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Escudo em contorno, com um corte onde passa a faixa -->
+  <path fill="#2e3436" fill-rule="evenodd"
+        d="M8 0.6 L1.8 2.9 V7.4 C1.8 11 4.4 14 8 15.4 C11.6 14 14.2 11 14.2 7.4 V2.9 Z
+           M8 2.2 L3.3 3.95 V7.4 C3.3 10.2 5.3 12.6 8 13.8 C10.7 12.6 12.7 10.2 12.7 7.4 V3.95 Z"
+        clip-path="url(#corte)"/>
+  <clipPath id="corte">
+    <!-- tudo, menos uma faixa larga em volta da diagonal -->
+    <path fill-rule="evenodd" d="M-1 -1 H17 V17 H-1 Z M-0.2 1.9 L1.9 -0.2 L16.2 14.1 L14.1 16.2 Z"/>
+  </clipPath>
+  <!-- Faixa diagonal -->
+  <path fill="#2e3436" d="M1.05 2.1 L2.1 1.05 L14.95 13.9 L13.9 14.95 Z"/>
+</svg>

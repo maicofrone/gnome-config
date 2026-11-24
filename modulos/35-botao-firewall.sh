@@ -1,5 +1,5 @@
 TITULO="Extensão: Botão do firewall"
-DESCRICAO="Botão no menu rápido para ligar/desligar o firewall (ufw), com senha. Alerta na barra enquanto estiver desligado, e o firewall volta ligado ao reiniciar. Pede senha (sudo)."
+DESCRICAO="Botão no menu rápido para ligar/desligar o firewall (ufw), com senha. Escudo cortado na barra enquanto estiver desligado, e o firewall volta ligado ao reiniciar. Pede senha (sudo)."
 PACOTES=(ufw polkit)
 DROPIN_DIR="/etc/systemd/system/ufw.service.d"
 DROPIN="religar-no-boot.conf"

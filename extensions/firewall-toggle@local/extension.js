@@ -10,6 +10,12 @@ import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quick
 const CONF = '/etc/ufw/ufw.conf';
 const UFW = '/usr/bin/ufw';
 
+// Ícone próprio (escudo cortado), monocromático como os ícones do GNOME
+const PASTA = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
+const ICONE_LIGADO = Gio.ThemedIcon.new('security-high-symbolic');
+const ICONE_DESLIGADO = Gio.FileIcon.new(
+    Gio.File.new_for_path(`${PASTA}/icons/firewall-desligado-symbolic.svg`));
+
 function lerEstado() {
     try {
         const [, bytes] = GLib.file_get_contents(CONF);
@@ -39,7 +45,7 @@ class FirewallToggle extends QuickToggle {
     _init(aoMudar) {
         super._init({
             title: 'Firewall',
-            iconName: 'security-high-symbolic',
+            gicon: ICONE_LIGADO,
             toggleMode: false,
         });
         this._aoMudar = aoMudar;
@@ -49,9 +55,9 @@ class FirewallToggle extends QuickToggle {
 
     mostrar(ligado) {
         this.checked = ligado === true;
-        this.iconName = ligado === false ? 'security-low-symbolic' : 'security-high-symbolic';
+        this.gicon = ligado === false ? ICONE_DESLIGADO : ICONE_LIGADO;
         if (!this._ocupado)
-            this.subtitle = ligado === null ? 'ufw não instalado' : ligado ? 'Ativo' : 'Desligado até reiniciar';
+            this.subtitle = ligado === null ? 'ufw não instalado' : ligado ? 'Ativo' : 'Desativado';
         this.reactive = ligado !== null && !this._ocupado;
     }
 
@@ -68,9 +74,7 @@ class FirewallToggle extends QuickToggle {
             // pkexec abre a janela de senha do GNOME
             const status = await rodar(['pkexec', UFW, ...(ligado ? ['disable'] : ['--force', 'enable'])]);
             if (status === 0)
-                Main.notify('Firewall', ligado
-                    ? 'Firewall desativado. Ele volta ligado quando o computador reiniciar.'
-                    : 'Firewall ativado.');
+                Main.notify('Firewall', ligado ? 'Firewall desativado.' : 'Firewall ativado.');
             else if (status !== 126 && status !== 127) // 126/127 = senha cancelada
                 Main.notifyError('Firewall', `Não foi possível mudar o firewall (código ${status}).`);
         } finally {
@@ -86,7 +90,7 @@ class Indicador extends SystemIndicator {
         super._init();
         // Ícone de alerta na barra, só enquanto o firewall estiver DESLIGADO
         this._icone = this._addIndicator();
-        this._icone.iconName = 'security-low-symbolic';
+        this._icone.gicon = ICONE_DESLIGADO;
 
         this.toggle = new FirewallToggle(() => this.atualizar());
         this.quickSettingsItems.push(this.toggle);
