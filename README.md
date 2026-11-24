@@ -87,7 +87,6 @@ modulos/               um arquivo por item instalável
 extensions/            código das extensões do GNOME
 apps/                  app Bloqueio do microfone
 config/pipewire/       regra do microfone
-config/systemd/        faz o firewall religar sozinho no boot
 ```
 
 ## Observações

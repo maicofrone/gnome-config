@@ -12,6 +12,29 @@ const UFW = '/usr/bin/ufw';
 
 // Ícone próprio (escudo cortado), monocromático como os ícones do GNOME
 const PASTA = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
+// Regra do systemd que faz o ufw voltar ligado ao reiniciar
+const DROPIN_ORIGEM = `${PASTA}/religar-no-boot.conf`;
+const DROPIN_DESTINO = '/etc/systemd/system/ufw.service.d/religar-no-boot.conf';
+
+function comandoDesligar() {
+    // Se a regra de religar ainda não está instalada (ou mudou), instala junto,
+    // na mesma senha. Depois desliga o ufw.
+    const iguais = (() => {
+        try {
+            const [, a] = GLib.file_get_contents(DROPIN_ORIGEM);
+            const [, b] = GLib.file_get_contents(DROPIN_DESTINO);
+            return new TextDecoder().decode(a) === new TextDecoder().decode(b);
+        } catch {
+            return false;
+        }
+    })();
+    if (iguais)
+        return ['pkexec', UFW, 'disable'];
+    return ['pkexec', '/bin/sh', '-c',
+        'install -D -m 644 "$1" "$2" && systemctl daemon-reload; exec "$3" disable',
+        'sh', DROPIN_ORIGEM, DROPIN_DESTINO, UFW];
+}
+
 const ICONE_LIGADO = Gio.ThemedIcon.new('security-high-symbolic');
 const ICONE_DESLIGADO = Gio.FileIcon.new(
     Gio.File.new_for_path(`${PASTA}/icons/firewall-desligado-symbolic.svg`));
@@ -72,7 +95,7 @@ class FirewallToggle extends QuickToggle {
 
         try {
             // pkexec abre a janela de senha do GNOME
-            const status = await rodar(['pkexec', UFW, ...(ligado ? ['disable'] : ['--force', 'enable'])]);
+            const status = await rodar(ligado ? comandoDesligar() : ['pkexec', UFW, '--force', 'enable']);
             if (status === 0)
                 Main.notify('Firewall', ligado ? 'Firewall desativado.' : 'Firewall ativado.');
             else if (status !== 126 && status !== 127) // 126/127 = senha cancelada

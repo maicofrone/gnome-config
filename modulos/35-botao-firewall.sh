@@ -10,7 +10,7 @@ instalar() {
     verde "  ✓ Botão do firewall instalado"
 
     # Faz o ufw sempre voltar ligado ao reiniciar
-    sudo install -D -m 644 "$AQUI/config/systemd/ufw.service.d/$DROPIN" "$DROPIN_DIR/$DROPIN"
+    sudo install -D -m 644 "$AQUI/extensions/firewall-toggle@local/$DROPIN" "$DROPIN_DIR/$DROPIN"
     sudo systemctl daemon-reload
     verde "  ✓ Firewall volta ligado sempre que o computador reiniciar"
 }

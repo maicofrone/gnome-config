@@ -57,6 +57,7 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
   - Enquanto o firewall estiver **desligado**, aparece na barra um escudo cortado por uma faixa (ícone próprio, monocromático, em `icons/`), para você não esquecer de religar.
   - As regras liberadas (KDE Connect, ESP32 etc.) continuam salvas e voltam ao religar.
 - **Sempre volta ligado ao reiniciar:** por padrão o `ufw disable` é permanente e continuaria desligado depois do boot. Um drop-in do systemd em `/etc/systemd/system/ufw.service.d/religar-no-boot.conf` muda `ENABLED=yes` no `ufw.conf` antes do ufw iniciar. Assim, desligar pelo botão vale só até o próximo reinício.
+- **2026-11-24, correção:** o firewall não religou num reinício porque a regra acima nunca tinha sido instalada (dependia de rodar um comando com `sudo` à parte). Agora a própria extensão instala a regra na primeira vez que você desliga o firewall, com a mesma senha. O arquivo da regra fica dentro da extensão (`firewall-toggle@local/religar-no-boot.conf`).
 
 ---
 
