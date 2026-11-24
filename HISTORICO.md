@@ -58,6 +58,8 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
   - As regras liberadas (KDE Connect, ESP32 etc.) continuam salvas e voltam ao religar.
 - **Sempre volta ligado ao reiniciar:** por padrão o `ufw disable` é permanente e continuaria desligado depois do boot. Um drop-in do systemd em `/etc/systemd/system/ufw.service.d/religar-no-boot.conf` muda `ENABLED=yes` no `ufw.conf` antes do ufw iniciar. Assim, desligar pelo botão vale só até o próximo reinício.
 - **2026-11-24, correção:** o firewall não religou num reinício porque a regra acima nunca tinha sido instalada (dependia de rodar um comando com `sudo` à parte). Agora a própria extensão instala a regra na primeira vez que você desliga o firewall, com a mesma senha. O arquivo da regra fica dentro da extensão (`firewall-toggle@local/religar-no-boot.conf`).
+- **2026-11-24, ligar sem senha:** regra do polkit `/etc/polkit-1/rules.d/49-firewall-toggle.rules` que permite **só** o comando exato `/usr/bin/ufw --force enable`, para o usuário do grupo `wheel` na sessão local ativa. Desligar continua pedindo senha (ligar só aumenta a proteção, desligar não).
+  - A extensão instala as duas regras (systemd + polkit) na primeira ação que pedir senha. Como a pasta do polkit não pode ser lida sem root, ela grava um marcador de versão em `/usr/local/share/firewall-toggle/versao` para saber se já instalou.
 
 ---
 
