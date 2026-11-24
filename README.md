@@ -37,6 +37,7 @@ Se instalou extensões, **saia da sessão e entre de novo** para o GNOME carreg�
 | **Microfone: bloquear apps de mudar o volume** | Regra do PipeWire que impede apps baseados no Chrome (Claude, Vivaldi, Brave…) de baixar o microfone sozinhos, mais o app **Bloqueio do microfone** para editar a lista. |
 | **Firewall: liberar KDE Connect** | Instala o KDE Connect e abre as portas 1714-1764 (TCP/UDP) no firewall (ufw ou firewalld). |
 | **Firewall: liberar LocalSend** | Instala o LocalSend e abre a porta 53317 (TCP/UDP). |
+| **Firewall: liberar OTA do ESP32** | Libera o upload OTA do ArduinoOTA/espota (Arduino IDE e PlatformIO): TCP 10000-60000, que é por onde o ESP32 se conecta de volta ao PC, mais o mDNS (5353/udp) para o ESP aparecer na rede. **Só para a rede local.** |
 
 Os itens de firewall pedem a senha do `sudo`.
 
@@ -71,7 +72,7 @@ instalar()    { liberar_portas "Syncthing" "22000"; }
 desinstalar() { fechar_portas  "Syncthing" "22000"; }
 ```
 
-Funções prontas em `lib.sh`: `copiar_extensao`, `ativar_extensao`, `remover_extensao`, `liberar_portas`, `fechar_portas`, `verde`, `amarelo`.
+Funções prontas em `lib.sh`: `copiar_extensao`, `ativar_extensao`, `remover_extensao`, `liberar_portas` / `fechar_portas` (qualquer rede), `liberar_portas_lan` / `fechar_portas_lan` (só rede local: 192.168.x, 10.x, 172.16-31.x), `verde`, `amarelo`.
 
 ## Estrutura
 

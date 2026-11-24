@@ -86,6 +86,56 @@ fechar_portas() {
     verde "  ✓ Portas $portas fechadas para $nome"
 }
 
+# Faixas de rede local (casa/escritório). Conexões de fora delas continuam bloqueadas.
+REDES_LOCAIS=(192.168.0.0/16 10.0.0.0/8 172.16.0.0/12)
+
+# Igual a liberar_portas, mas só aceita conexões vindas da rede local.
+# liberar_portas_lan "Nome" "porta[:porta]" proto [proto...]
+liberar_portas_lan() {
+    local nome="$1" portas="$2"; shift 2
+    local protos=("$@"); [[ $# -eq 0 ]] && protos=(tcp udp)
+    if systemctl is-active --quiet ufw; then
+        for rede in "${REDES_LOCAIS[@]}"; do
+            for p in "${protos[@]}"; do
+                sudo ufw allow from "$rede" to any port "$portas" proto "$p" comment "$nome" >/dev/null
+            done
+        done
+        sudo ufw reload >/dev/null
+    elif systemctl is-active --quiet firewalld; then
+        for rede in "${REDES_LOCAIS[@]}"; do
+            for p in "${protos[@]}"; do
+                sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$rede port port=${portas/:/-} protocol=$p accept" >/dev/null
+            done
+        done
+        sudo firewall-cmd --reload >/dev/null
+    else
+        amarelo "  Nenhum firewall ativo (ufw/firewalld): nada para liberar."
+        return 0
+    fi
+    verde "  ✓ Portas $portas (${protos[*]}) liberadas para $nome, só na rede local"
+}
+
+fechar_portas_lan() {
+    local nome="$1" portas="$2"; shift 2
+    local protos=("$@"); [[ $# -eq 0 ]] && protos=(tcp udp)
+    if systemctl is-active --quiet ufw; then
+        for rede in "${REDES_LOCAIS[@]}"; do
+            for p in "${protos[@]}"; do
+                sudo ufw delete allow from "$rede" to any port "$portas" proto "$p" >/dev/null 2>&1 || true
+            done
+        done
+        sudo ufw reload >/dev/null
+    elif systemctl is-active --quiet firewalld; then
+        for rede in "${REDES_LOCAIS[@]}"; do
+            for p in "${protos[@]}"; do
+                sudo firewall-cmd --permanent --remove-rich-rule="rule family=ipv4 source address=$rede port port=${portas/:/-} protocol=$p accept" >/dev/null 2>&1 || true
+            done
+        done
+        sudo firewall-cmd --reload >/dev/null
+    fi
+    verde "  ✓ Portas $portas fechadas para $nome"
+}
+
 # ---------- módulos ----------
 # Cada arquivo em modulos/ define: TITULO, DESCRICAO, PACOTES=(...),
 # e as funções instalar() e desinstalar().
