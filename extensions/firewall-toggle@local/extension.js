@@ -155,10 +155,26 @@ class Indicador extends SystemIndicator {
     }
 });
 
+// O GNOME chama enable() no login e também toda vez que a tela é desbloqueada.
+// Esta variável fica viva enquanto a sessão durar, então o religamento
+// acontece só uma vez por login (e não a cada desbloqueio).
+let verificouNoLogin = false;
+
+function religarNoLogin() {
+    if (verificouNoLogin)
+        return;
+    verificouNoLogin = true;
+    // Só religa se estiver desligado e se a regra de "ligar sem senha" já
+    // estiver instalada (para nunca aparecer pedido de senha no login).
+    if (lerEstado() === false && ler(MARCADOR) === versaoAtual())
+        rodar(['pkexec', UFW, '--force', 'enable']).catch(logError);
+}
+
 export default class FirewallToggleExtension {
     enable() {
         this._indicador = new Indicador();
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicador);
+        religarNoLogin();
     }
 
     disable() {

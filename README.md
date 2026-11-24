@@ -36,7 +36,7 @@ Se instalou extensões, **saia da sessão e entre de novo** para o GNOME carreg�
 | **Extensão: Espaçamento da bandeja** | Diminui a distância entre os ícones do lado direito da barra (6 px). |
 | **Extensão: Ocultar indicadores** | Esconde da barra os ícones de Modo de energia (Performance) e Luz noturna. Os botões continuam no menu rápido. |
 | **Extensão: Apps em segundo plano no menu** | Tira da barra os ícones de apps (Claude, Dropbox, Cachy-Update…) e os lista num botão **"Apps"** no menu rápido. |
-| **Extensão: Botão do firewall** | Botão **"Firewall"** no menu rápido para ligar e desligar o ufw. **Desligar pede senha; ligar não**, mostra um escudo cortado na barra enquanto o firewall estiver desligado e **o firewall sempre volta ligado ao reiniciar**. |
+| **Extensão: Botão do firewall** | Botão **"Firewall"** no menu rápido para ligar e desligar o ufw. **Desligar pede senha; ligar não**, mostra um escudo cortado na barra enquanto o firewall estiver desligado e **o firewall sempre volta ligado ao reiniciar o PC ou ao entrar na sessão**. |
 | **Microfone: bloquear apps de mudar o volume** | Regra do PipeWire que impede apps baseados no Chrome (Claude, Vivaldi, Brave…) de baixar o microfone sozinhos, mais o app **Bloqueio do microfone** para editar a lista. |
 | **Firewall: liberar KDE Connect** | Instala o KDE Connect e abre as portas 1714-1764 (TCP/UDP) no firewall (ufw ou firewalld). |
 | **Firewall: liberar LocalSend** | Instala o LocalSend e abre a porta 53317 (TCP/UDP). |
