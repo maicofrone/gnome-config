@@ -7,7 +7,7 @@ set -euo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions"
 
-for e in ocultar-indicadores@local apps-no-menu@local firewall-toggle@local; do
+for e in ocultar-indicadores@local apps-no-menu@local firewall-toggle@local mpris-debounce@local; do
     [[ -d "$EXT_DIR/$e" ]] || continue
     rm -rf "${AQUI:?}/extensions/$e"
     cp -r "$EXT_DIR/$e" "$AQUI/extensions/"

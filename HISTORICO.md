@@ -86,6 +86,21 @@ Registro do que foi ajustado neste sistema (CachyOS + GNOME 51), com a causa de 
 
 ---
 
+## 2026-11-26: Mouse travando ao passar música no YouTube Music
+
+- **Sintoma:** ao trocar de música no YouTube Music (no Vivaldi), o mouse dava **duas travadinhas**. Desativar e reativar a extensão Quick Settings Audio Panel melhorava, mas a travada voltava depois de um tempo.
+- **Causa:** o Vivaldi (e o Chrome) mandam uma **rajada de avisos de mídia (MPRIS)** a cada troca de faixa. Numa gravação de 90 s com `dbus-monitor` foram 385 avisos, até 26 no mesmo segundo, e quase todos com a capa do álbum num **arquivo temporário novo** (43 arquivos diferentes). O player de mídia do GNOME (e o da Quick Settings Audio Panel, que usa o mesmo código) redesenhava a capa a cada aviso. No Wayland o `gnome-shell` também desenha o mouse, então cada redesenho trava o cursor. As duas travadinhas são a miniatura da capa e depois a versão grande. Como cada capa é um arquivo novo, o cache do GNOME vai crescendo e a travada piora com o tempo.
+- **Alternativa descartada:** desligar `Hardware Media Key Handling` em `vivaldi://flags`. Resolve, mas o player some do painel e as teclas de mídia param de controlar o YouTube Music.
+- **Solução:** extensão **`mpris-debounce@local`**. Ela troca o `MprisPlayer._updateState` do GNOME (`resource:///org/gnome/shell/ui/mpris.js`) por uma versão que espera **0,4 s sem avisos novos** (no máximo 1,2 s) e atualiza o player uma vez só, já com a capa final. Item **"Extensão: Mouse sem travar ao trocar de música"**.
+  - O título e a capa no painel podem aparecer até ~1 s depois da troca. A música em si não atrasa.
+  - Só foi testada no **GNOME 51**: ela mexe em funções internas do GNOME, que podem mudar de nome em versões novas. Se o GNOME atualizar e a travada voltar (ou a extensão der erro), confira se `MprisPlayer`, `_updateState` e `_onPlayerProxyReady` ainda existem em `ui/mpris.js`.
+- **Para conferir as rajadas de novo:**
+  ```bash
+  dbus-monitor --session "type='signal',interface='org.freedesktop.DBus.Properties',path='/org/mpris/MediaPlayer2'"
+  ```
+
+---
+
 ## Ajustes manuais (não automatizados)
 
 ### Programas que iniciam com o computador

@@ -1,0 +1,6 @@
+{
+  "uuid": "mpris-debounce@local",
+  "name": "MPRIS Debounce",
+  "description": "Agrupa rajadas de atualizações de mídia (ex.: Vivaldi/YouTube Music) para evitar travadas do shell.",
+  "shell-version": ["51"]
+}
